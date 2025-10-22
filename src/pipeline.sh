@@ -1,18 +1,31 @@
 #!/usr/bin/env bash
 
+t1_niigz=$(pwd)/../INPUTS/t1.nii.gz
+bedpost_dir=$(pwd)/../INPUTS/bedpost_v3/BEDPOSTX
+out_dir=$(pwd)/../OUTPUTS
+
+# Work in the output dir
+cd "${out_dir}"
+
 # Registrations
+
+# Rigid register T1 to DWI and resample to DWI geometry
 flirt \
- -in t1 \
- -ref bedpostx/nodif \
- -out t1_nodif \
- -omat t1_2_nodif.mat \
- -bins 256 -cost corratio -searchrx -90 90 -searchry -90 90 -searchrz -90 90 -dof 6 -interp trilinear
+    -bins 256 -cost corratio -dof 6 -interp trilinear \
+    -in "${t1_niigz}" \
+    -ref "${bedpost_dir}"/nodif \
+    -out t1_to_nodif \
+    -omat t1_to_nodif.mat
 
+# Apply brain mask to the resampled T1
 fslmaths \
- t1_2_nodif \
- -mas bedpostx/nodif_brain_mask.nii.gz \
- bedpostx/T1_brain.nii.gz
+    t1_to_nodif \
+    -mas "${bedpost_dir}"/nodif_brain_mask \
+    T1_brain
 
+# FIXME We are here
+
+# Rigid register masked DWI to masked T1 (why?)
 flirt \
  -in bedpostx/nodif_brain \
  -ref bedpostx/T1_brain \
@@ -23,6 +36,7 @@ convert_xfm \
  -omat bedpostx/xfms/str2diff.mat \
  -inverse bedpostx/xfms/diff2str.mat
 
+# Affine register T1 to MNI template
 flirt \
  -in bedpostx/T1_brain \
  -ref fsl/data/standard/MNI152_T1_2mm_brain \
